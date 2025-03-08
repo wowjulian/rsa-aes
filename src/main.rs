@@ -17,7 +17,7 @@ fn miller_rabin_test(n: &BigUint, q: &BigUint, k: &u32) -> bool {
     let mut rng = rand::thread_rng();
     let lbound = &BigUint::from_u8(2).unwrap();
     let ubound = n - BigUint::one();
-    println!("lbound: {} ubound: {}", lbound, ubound);
+    // println!("lbound: {} ubound: {}", lbound, ubound);
     let a: BigUint = rng.gen_biguint_range(&lbound, &ubound);
     let a_pow_q_mod_n: BigUint = a.modpow(&q, n);
     let is_inconclusive: bool = (a_pow_q_mod_n) == BigUint::one();
@@ -25,10 +25,10 @@ fn miller_rabin_test(n: &BigUint, q: &BigUint, k: &u32) -> bool {
         return true;
     }
 
-    println!("n: {}", n.clone());
-    println!("k: {}", *k);
-    println!("q: {}", q);
-    println!("a: {}", a);
+    // println!("n: {}", n.clone());
+    // println!("k: {}", *k);
+    // println!("q: {}", q);
+    // println!("a: {}", a);
 
     let two: u32 = u32::one() + u32::one();
     if *k != 0 {
@@ -41,7 +41,6 @@ fn miller_rabin_test(n: &BigUint, q: &BigUint, k: &u32) -> bool {
         }
     }
     // is composite
-    println!("composite");
     return false;
 }
 
@@ -58,15 +57,11 @@ fn is_prime(number: &BigUint) -> bool {
 
 fn generate_prime_number() {
     let mut rng = rand::thread_rng();
-    let odd_random_number: BigUint = BigUint::from_i32(5523).unwrap();
-    // let odd_random_number = rng.gen_biguint(1024) | BigUint::one();
-    println!("odd_random_number {}", odd_random_number);
-    let confirmed_prime = is_prime(&odd_random_number);
-    if confirmed_prime {
-        println!("is prime");
-    } else {
-        println!("is not prime");
+    let mut odd_random_number = rng.gen_biguint(1024) | BigUint::one();
+    while !is_prime(&odd_random_number) {
+        odd_random_number = rng.gen_biguint(1024) | BigUint::one();
     }
+    println!("Prime is: {}", odd_random_number);
 }
 
 fn main() {
