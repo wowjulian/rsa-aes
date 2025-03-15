@@ -1,8 +1,11 @@
-use std::str::FromStr;
-
+use aes::{
+    cipher::{consts::U16, generic_array::GenericArray, BlockDecrypt, BlockEncrypt, KeyInit},
+    Aes128, Aes256,
+};
 use libm::erfc;
 use num::{integer::Roots, BigUint, FromPrimitive, Integer, One, Zero};
 use num_bigint::{RandBigInt, ToBigUint};
+use std::str::FromStr;
 
 fn miller_rabin_test_k_and_q(n: BigUint) -> (u32, BigUint) {
     let mut k = 0;
@@ -102,17 +105,16 @@ fn blum_blum_shub(bit_count: u64) -> BigUint {
     for i in 0..bit_count {
         x = x.modpow(&two, &n);
         let bit = x.modpow(&BigUint::one(), &two) & BigUint::one();
-        print!("{}", bit);
         result.set_bit(i, bit.bit(0));
     }
-    println!("");
+
     return result;
 }
 
-fn main() {
+fn task_1() {
     // Task 1
     let key = blum_blum_shub(2048);
-    println!("result: {}", key);
+    println!("result: {:02048b}", key);
     println!("bits: {}", key.bits());
 
     // Task 1 - Test 1
@@ -124,4 +126,64 @@ fn main() {
     println!("zeroes: {}", zeros);
     println!("ones: {}", ones);
     println!("p_value: {}", p_value);
+}
+fn task_2() {
+    let aes_key: BigUint = blum_blum_shub(256);
+    println!("aes_key: {:0256b}", aes_key);
+    let key_bytes: [u8; 32] = aes_key.to_bytes_be().try_into().expect("failed to convert");
+    let key = GenericArray::from(key_bytes);
+    let cipher = Aes256::new(&key);
+
+    let plaintext = b"Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum.";
+    let padded_plaintext = pad_pkcs7(plaintext, 16);
+
+    let mut encrypted_blocks = Vec::new();
+
+    for chunk in padded_plaintext.chunks_exact(16) {
+        let mut block = GenericArray::clone_from_slice(chunk);
+        cipher.encrypt_block(&mut block);
+        encrypted_blocks.push(block);
+    }
+    println!("Encrypted Blocks:");
+    for (i, block) in encrypted_blocks.iter().enumerate() {
+        println!("Block {}: {:?}", i + 1, block);
+    }
+
+    // Now decrypt the encrypted blocks
+    let mut decrypted_blocks = Vec::new();
+    for block in encrypted_blocks {
+        let mut block_decrypted = block.clone();
+        cipher.decrypt_block(&mut block_decrypted);
+        decrypted_blocks.push(block_decrypted);
+    }
+
+    let mut decrypted_bytes = Vec::new();
+    for block in decrypted_blocks {
+        decrypted_bytes.extend_from_slice(&block);
+    }
+    let decrypted_text = unpad_pkcs7(&decrypted_bytes);
+    println!("Decrypted: {}", String::from_utf8_lossy(&decrypted_text));
+}
+
+// Got these two padding functions from GPT. I know how it works though, commenting on my own to demonstrate
+fn pad_pkcs7(data: &[u8], block_size: usize) -> Vec<u8> {
+    // Calculates how many u8s need to be padded
+    let pad_len = block_size - (data.len() % block_size);
+    // Creates a vector with given data
+    let mut padded = data.to_vec();
+    // Adds padding, last bytes will be number of padding length
+    padded.extend(std::iter::repeat(pad_len as u8).take(pad_len));
+    // Returns
+    return padded;
+}
+fn unpad_pkcs7(data: &[u8]) -> Vec<u8> {
+    // Grabs the padding length from the last u8
+    let pad_len = *data.last().unwrap() as usize;
+    // Return data without padding u8s
+    return data[..data.len() - pad_len].to_vec();
+}
+
+fn main() {
+    // task_1();
+    task_2();
 }
