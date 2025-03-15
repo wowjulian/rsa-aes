@@ -1,6 +1,7 @@
 use std::str::FromStr;
 
-use num::{BigUint, FromPrimitive, Integer, One, Zero};
+use libm::erfc;
+use num::{integer::Roots, BigUint, FromPrimitive, Integer, One, Zero};
 use num_bigint::{RandBigInt, ToBigUint};
 
 fn miller_rabin_test_k_and_q(n: BigUint) -> (u32, BigUint) {
@@ -90,10 +91,10 @@ fn blum_blum_shub(bit_count: u64) -> BigUint {
     // let s: BigUint = find_seed_for_bbs(&n);
     let s = BigUint::from_str("16751150833723281346546415716076594334989226676891536485489274904983481515358742966589697654499417137468862387388402184459823842220567709616938731358137915608514479877281636657674934515491613725807050807519504523812185201499019018218289119132682700941058887266319869080558059248745161919485889078051880786249395645115940431604392311784385528345978282436907566189961509308578797652821187621757255880707855901282481165771099060247969949561518288779403680268076957377110069337764220111375311868780614276108799613224556262077784946151663844163100007591838503639610808192718051910877580017595649384146691473588376287568681").unwrap();
 
-    println!("p: {}", p);
-    println!("q: {}", q);
-    println!("n: {}", n);
-    println!("s: {}", s);
+    // println!("p: {}", p);
+    // println!("q: {}", q);
+    // println!("n: {}", n);
+    // println!("s: {}", s);
 
     let two = BigUint::one() + BigUint::one();
     let mut x = s.modpow(&two, &n);
@@ -109,9 +110,18 @@ fn blum_blum_shub(bit_count: u64) -> BigUint {
 }
 
 fn main() {
+    // Task 1
     let key = blum_blum_shub(2048);
     println!("result: {}", key);
     println!("bits: {}", key.bits());
-    println!("zeros: {}", key.bits() - key.count_ones());
-    println!("ones: {}", key.count_ones());
+
+    // Task 1 - Test 1
+    let zeros = key.bits() - key.count_ones();
+    let ones = key.count_ones();
+    let s_obs: f64 = (ones - zeros) as f64 / (key.bits() as f64).sqrt();
+    let p_value = erfc(s_obs.abs() / (2 as f64).sqrt());
+
+    println!("zeroes: {}", zeros);
+    println!("ones: {}", ones);
+    println!("p_value: {}", p_value);
 }
