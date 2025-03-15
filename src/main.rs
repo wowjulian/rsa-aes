@@ -91,7 +91,7 @@ fn find_seed_for_bbs(n: &BigUint) -> BigUint {
     return s_candidate;
 }
 
-fn blum_blum_shub(bit_count: u64) -> BigUint {
+fn blum_blum_shub(bit_count: u64) -> (BigUint, BigUint, BigUint) {
     // Calculated with find_prime_for_bbs(1024)
     let p: BigUint = BigUint::from_str("91122045179318965173533839131368998662772456836316619574148988450969399638066015732396427566243748625301463193721989348160150289310601464760678023543905884939640329370981639669486054016790003739067183295427192269871515101958634419380284904391739809184729932234982543491394799238889453600867187568552286325947").unwrap();
     let q: BigUint = BigUint::from_str("22537017916243391647302294697783847565496398436656731187314486777281589031427811644162172298834653261847630683638084954095389795674883668957087575593936693030294860183039798443433626313894524118928724341320999385717299136781988248405248165926958106413623940227249989571125812352913420301394817441164820406503").unwrap();
@@ -114,12 +114,12 @@ fn blum_blum_shub(bit_count: u64) -> BigUint {
         result.set_bit(i, bit.bit(0));
     }
 
-    return result;
+    return (q, p, result);
 }
 
-fn task_1() {
+fn task_1() -> BigUint {
     // Task 1
-    let key = blum_blum_shub(2048);
+    let (_q, _p, key) = blum_blum_shub(2048);
     println!("result: {:02048b}", key);
     println!("bits: {}", key.bits());
 
@@ -132,6 +132,8 @@ fn task_1() {
     println!("zeroes: {}", zeros);
     println!("ones: {}", ones);
     println!("p_value: {}", p_value);
+
+    return key;
 }
 
 fn cbc_enc_with_key_and_iv(cipher: &Aes256, iv: u128, block: &mut Block<Aes256>) {
@@ -151,7 +153,7 @@ fn cbc_dec_with_key_and_iv(cipher: &Aes256, iv: u128, block: &mut Block<Aes256>)
 }
 
 fn task_2() {
-    let aes_key: BigUint = blum_blum_shub(256);
+    let (_, _, aes_key) = blum_blum_shub(256);
     println!("aes_key: {:0256b}", aes_key);
     let key_bytes: [u8; 32] = aes_key.to_bytes_be().try_into().expect("failed to convert");
     let key = GenericArray::from(key_bytes);
@@ -192,6 +194,7 @@ fn task_2() {
 }
 
 // Got these two padding functions from GPT. I know how it works though, commenting on my own to demonstrate
+// Basically it fills last block with number of u8s to pad for empty block elements. If the blocks are already full and divisble by block size, it creates a new block to extend.
 fn pad_pkcs7(data: &[u8], block_size: usize) -> Vec<u8> {
     // Calculates how many u8s need to be padded
     let pad_len = block_size - (data.len() % block_size);
@@ -209,7 +212,38 @@ fn unpad_pkcs7(data: &[u8]) -> Vec<u8> {
     return data[..data.len() - pad_len].to_vec();
 }
 
+fn task_3() {
+    // Create a AES symm key
+    let (_, _, aes_key) = blum_blum_shub(256);
+
+    let (q, p, key) = blum_blum_shub(2048);
+    let n = q.clone() * p.clone();
+    let totient_n = (q - BigUint::one()) * (p - BigUint::one());
+    let mut e = BigUint::one() + BigUint::one();
+    loop {
+        if e >= totient_n {
+            panic!("could not e");
+        }
+        if e.gcd(&totient_n) == BigUint::one() {
+            break;
+        }
+
+        e = e + BigUint::one();
+    }
+    let d = e.modinv(&totient_n).unwrap();
+    println!("aes_key: {}", aes_key);
+    // Encrpyt
+    let encrypted_aes_key = aes_key.modpow(&e, &n);
+    println!("encrypted_aes_key: {}", encrypted_aes_key);
+
+    // Decrypt
+    let decrypted_aes_key = encrypted_aes_key.modpow(&d, &n);
+    println!("decrypted_aes_key: {}", decrypted_aes_key);
+}
+
 fn main() {
     // task_1();
     task_2();
+    println!("======== [TASK 3] ========");
+    task_3();
 }
