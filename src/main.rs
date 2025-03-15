@@ -1,5 +1,7 @@
 use aes::{
-    cipher::{consts::U16, generic_array::GenericArray, BlockDecrypt, BlockEncrypt, KeyInit},
+    cipher::{
+        consts::U16, generic_array::GenericArray, Block, BlockDecrypt, BlockEncrypt, KeyInit,
+    },
     Aes128, Aes256,
 };
 use libm::erfc;
@@ -127,6 +129,15 @@ fn task_1() {
     println!("ones: {}", ones);
     println!("p_value: {}", p_value);
 }
+
+fn cbc_with_key_and_iv(cipher: &Aes256, iv: u128, block: &mut Block<Aes256>) {
+    // let hey = block.last();
+    for i in 0..block.len() {
+        let iv_bit = ((iv >> (i * 8)) & 0xFF) as u8;
+        block[i] = block[i] ^ iv_bit;
+    }
+    cipher.encrypt_block(block);
+}
 fn task_2() {
     let aes_key: BigUint = blum_blum_shub(256);
     println!("aes_key: {:0256b}", aes_key);
@@ -156,7 +167,6 @@ fn task_2() {
         cipher.decrypt_block(&mut block_decrypted);
         decrypted_blocks.push(block_decrypted);
     }
-
     let mut decrypted_bytes = Vec::new();
     for block in decrypted_blocks {
         decrypted_bytes.extend_from_slice(&block);
