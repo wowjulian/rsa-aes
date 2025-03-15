@@ -194,11 +194,11 @@ fn task_2() {
 }
 
 // Got these two padding functions from GPT. I know how it works though, commenting on my own to demonstrate
-// Basically it fills last block with number of u8s to pad for empty block elements. If the blocks are already full and divisble by block size, it creates a new block to extend.
+// Basically it fills (crates a new one if all blocks are full) last block with number of u8s to pad for empty block elements. If the blocks are already full and divisble by block size,
 fn pad_pkcs7(data: &[u8], block_size: usize) -> Vec<u8> {
     // Calculates how many u8s need to be padded
     let pad_len = block_size - (data.len() % block_size);
-    // Creates a vector with given data
+    // Creates a vector with data
     let mut padded = data.to_vec();
     // Adds padding, last bytes will be number of padding length
     padded.extend(std::iter::repeat(pad_len as u8).take(pad_len));
