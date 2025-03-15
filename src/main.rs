@@ -7,6 +7,10 @@ use aes::{
 use libm::erfc;
 use num::{integer::Roots, BigUint, FromPrimitive, Integer, One, Zero};
 use num_bigint::{RandBigInt, ToBigUint};
+use rand_chacha::{
+    rand_core::{RngCore, SeedableRng},
+    ChaCha20Rng,
+};
 use std::str::FromStr;
 
 fn miller_rabin_test_k_and_q(n: BigUint) -> (u32, BigUint) {
@@ -130,20 +134,31 @@ fn task_1() {
     println!("p_value: {}", p_value);
 }
 
-fn cbc_with_key_and_iv(cipher: &Aes256, iv: u128, block: &mut Block<Aes256>) {
-    // let hey = block.last();
+fn cbc_enc_with_key_and_iv(cipher: &Aes256, iv: u128, block: &mut Block<Aes256>) {
     for i in 0..block.len() {
         let iv_bit = ((iv >> (i * 8)) & 0xFF) as u8;
         block[i] = block[i] ^ iv_bit;
     }
     cipher.encrypt_block(block);
 }
+
+fn cbc_dec_with_key_and_iv(cipher: &Aes256, iv: u128, block: &mut Block<Aes256>) {
+    cipher.decrypt_block(block);
+    for i in 0..block.len() {
+        let iv_bit = ((iv >> (i * 8)) & 0xFF) as u8;
+        block[i] = block[i] ^ iv_bit;
+    }
+}
+
 fn task_2() {
     let aes_key: BigUint = blum_blum_shub(256);
     println!("aes_key: {:0256b}", aes_key);
     let key_bytes: [u8; 32] = aes_key.to_bytes_be().try_into().expect("failed to convert");
     let key = GenericArray::from(key_bytes);
     let cipher = Aes256::new(&key);
+
+    let mut rng = ChaCha20Rng::from_seed(Default::default());
+    let iv = (rng.next_u64() as u128) << 64 | rng.next_u64() as u128;
 
     let plaintext = b"Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum.";
     let padded_plaintext = pad_pkcs7(plaintext, 16);
@@ -152,7 +167,8 @@ fn task_2() {
 
     for chunk in padded_plaintext.chunks_exact(16) {
         let mut block = GenericArray::clone_from_slice(chunk);
-        cipher.encrypt_block(&mut block);
+        // cipher.encrypt_block(&mut block);
+        cbc_enc_with_key_and_iv(&cipher, iv, &mut block);
         encrypted_blocks.push(block);
     }
     println!("Encrypted Blocks:");
@@ -160,11 +176,11 @@ fn task_2() {
         println!("Block {}: {:?}", i + 1, block);
     }
 
-    // Now decrypt the encrypted blocks
     let mut decrypted_blocks = Vec::new();
     for block in encrypted_blocks {
         let mut block_decrypted = block.clone();
-        cipher.decrypt_block(&mut block_decrypted);
+        // cipher.decrypt_block(&mut block_decrypted);
+        cbc_dec_with_key_and_iv(&cipher, iv, &mut block_decrypted);
         decrypted_blocks.push(block_decrypted);
     }
     let mut decrypted_bytes = Vec::new();
