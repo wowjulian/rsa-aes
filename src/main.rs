@@ -238,7 +238,7 @@ fn task_3() {
     let mut e = BigUint::one() + BigUint::one();
     loop {
         if e >= totient_n {
-            panic!("could not e");
+            panic!("could not calculate e");
         }
         if e.gcd(&totient_n) == BigUint::one() {
             break;
@@ -295,8 +295,10 @@ fn task_4() {
 
     // Encrypt
     let encrypted_blocks: Vec<Block<Aes256>> = enc_cbc(&cipher, iv, &bytes);
+    // Decrypt
     let decrypted: Vec<u8> = dec_cbc(&cipher, iv, encrypted_blocks);
 
+    // Write new file
     let mut out_file = File::create("./images/output.webp").unwrap();
     out_file.write_all(&decrypted).unwrap();
 }
@@ -305,5 +307,5 @@ fn main() {
     // task_1();
     // task_2();
     // task_3();
-    task_4();
+    // task_4();
 }
