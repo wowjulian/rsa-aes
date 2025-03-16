@@ -229,12 +229,17 @@ fn unpad_pkcs7(data: &[u8]) -> Vec<u8> {
 }
 
 fn task_3() {
-    // Create a AES symm key
+    // Generate a AES symm key
     let (_, _, aes_key) = blum_blum_shub(256);
 
-    let (q, p, key) = blum_blum_shub(2048);
+    // Generate q and p
+    let (q, p, _) = blum_blum_shub(2048);
+
+    // Calculate n and totient n
     let n = q.clone() * p.clone();
     let totient_n = (q - BigUint::one()) * (p - BigUint::one());
+
+    // Cacluate e
     let mut e = BigUint::one() + BigUint::one();
     loop {
         if e >= totient_n {
@@ -243,17 +248,18 @@ fn task_3() {
         if e.gcd(&totient_n) == BigUint::one() {
             break;
         }
-
         e = e + BigUint::one();
     }
+    // Calculate d
     let d = e.modinv(&totient_n).unwrap();
-    println!("aes_key: {}", aes_key);
     // Encrpyt
     let encrypted_aes_key = aes_key.modpow(&e, &n);
-    println!("encrypted_aes_key: {}", encrypted_aes_key);
 
     // Decrypt
     let decrypted_aes_key = encrypted_aes_key.modpow(&d, &n);
+
+    println!("aes_key: {}", aes_key);
+    println!("encrypted_aes_key: {}", encrypted_aes_key);
     println!("decrypted_aes_key: {}", decrypted_aes_key);
 }
 
@@ -266,21 +272,7 @@ fn get_aes_256_key() -> Key<Aes256> {
     let key = GenericArray::from(key_bytes);
     return key;
 }
-fn image_test() {
-    let img = ImageReader::open("./images/dune.webp")
-        .unwrap()
-        .decode()
-        .unwrap();
-    let mut bytes: Vec<u8> = Vec::new();
-    img.write_to(&mut Cursor::new(&mut bytes), image::ImageFormat::Png)
-        .unwrap();
-    let img2 = ImageReader::new(Cursor::new(bytes))
-        .with_guessed_format()
-        .unwrap()
-        .decode()
-        .unwrap()
-        .save("./images/new.webp");
-}
+
 fn task_4() {
     // Get IV
     let iv = get_iv();
@@ -306,6 +298,6 @@ fn task_4() {
 fn main() {
     // task_1();
     // task_2();
-    // task_3();
+    task_3();
     // task_4();
 }
