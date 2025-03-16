@@ -1,5 +1,6 @@
 mod aes_cbc;
 mod bbs;
+mod crt;
 
 use aes::{
     cipher::{generic_array::GenericArray, Block, Key, KeyInit},
@@ -7,6 +8,7 @@ use aes::{
 };
 use aes_cbc::{dec_cbc, enc_cbc, get_iv};
 use bbs::blum_blum_shub;
+use crt::dec_rsa_crt;
 use libm::erfc;
 use num::{BigUint, Integer, One};
 use std::{fs::File, io::Read};
@@ -151,22 +153,12 @@ fn task_5() {
     let start = Instant::now();
     let decrypted_aes_key = encrypted_aes_key.modpow(&d, &n);
     let duration = start.elapsed();
-    println!("dec [{:?}]: {}", duration, decrypted_aes_key);
+    println!("REG dec [{:?}]: {}", duration, decrypted_aes_key);
     // Decrypt using CRT
     let start = Instant::now();
-    let p_minus_one = p.clone() - BigUint::one();
-    let q_minus_one = q.clone() - BigUint::one();
-    let dp = &d % &p_minus_one;
-    let dq = &d % &q_minus_one;
-    let q_inv = q.modinv(&p).unwrap();
-    let m1 = encrypted_aes_key.modpow(&dp, &p);
-    let m2 = encrypted_aes_key.modpow(&dq, &q);
-    let h = (q_inv * (m1 - &m2)) % &p;
-    let m = m2 + h * q;
+    let decrypted_with_crt = dec_rsa_crt(&d, &p, &q, &encrypted_aes_key);
     let duration = start.elapsed();
-    println!("dec [{:?}]: {}", duration, m);
-
-    // let dq = d.modpow(&BigUint::one(), &(q.clone() - BigUint::one()));
+    println!("CRT dec [{:?}]: {}", duration, decrypted_with_crt);
 }
 
 fn main() {

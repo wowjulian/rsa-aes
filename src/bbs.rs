@@ -71,7 +71,6 @@ pub fn find_prime_for_bbs() -> BigUint {
 
 pub fn find_seed_for_bbs(n: &BigUint) -> BigUint {
     let mut s_candidate = generate_prime_number(2048);
-    // while (s_candidate.g)
     let mut gcd = s_candidate.gcd(n);
     while gcd != BigUint::one() {
         s_candidate = generate_prime_number(2048);
