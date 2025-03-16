@@ -7,11 +7,12 @@ use rand_chacha::{
     ChaCha20Rng,
 };
 
+const BLOCK_SIZE: usize = 16;
 // Got these two padding functions from GPT. I know how it works though, commenting on my own to demonstrate
 // Basically it fills last block (crates a new block if all blocks are full) with number of u8s to pad for empty block elements.
-fn pad_pkcs7(data: &[u8], block_size: usize) -> Vec<u8> {
+fn pad_pkcs7(data: &[u8]) -> Vec<u8> {
     // Calculates how many u8s need to be padded
-    let pad_len = block_size - (data.len() % block_size);
+    let pad_len = BLOCK_SIZE - (data.len() % BLOCK_SIZE);
     // Creates a vector with data
     let mut padded: Vec<u8> = data.to_vec();
     // Adds padding, last bytes will be number of padding length
@@ -49,11 +50,10 @@ pub fn get_iv() -> u128 {
 }
 
 pub fn enc_cbc(cipher: &Aes256, iv: u128, data: &[u8]) -> Vec<Block<Aes256>> {
-    let padded_data: Vec<u8> = pad_pkcs7(&data, 16);
+    let padded_data: Vec<u8> = pad_pkcs7(&data);
     let mut encrypted_blocks: Vec<Block<Aes256>> = Vec::new();
     for chunk in padded_data.chunks_exact(16) {
         let mut block = GenericArray::clone_from_slice(chunk);
-        // cipher.encrypt_block(&mut block);
         cbc_enc_with_key_and_iv(&cipher, iv, &mut block);
         encrypted_blocks.push(block);
     }
@@ -64,7 +64,6 @@ pub fn dec_cbc(cipher: &Aes256, iv: u128, encrypted_blocks: Vec<Block<Aes256>>) 
     let mut decrypted_blocks = Vec::new();
     for block in encrypted_blocks {
         let mut block_decrypted = block.clone();
-        // cipher.decrypt_block(&mut block_decrypted);
         cbc_dec_with_key_and_iv(&cipher, iv, &mut block_decrypted);
         decrypted_blocks.push(block_decrypted);
     }

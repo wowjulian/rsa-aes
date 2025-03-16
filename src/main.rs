@@ -104,7 +104,7 @@ fn task_4() {
     let key = get_aes_256_key();
     let cipher: Aes256 = Aes256::new(&key);
 
-    // Image
+    // Read image
     let mut img: File = File::open("./images/dune.webp").expect("file failed to open");
     let mut bytes = Vec::new();
     img.read_to_end(&mut bytes).expect("Failed to read file");
@@ -114,7 +114,7 @@ fn task_4() {
     // Decrypt
     let decrypted: Vec<u8> = dec_cbc(&cipher, iv, encrypted_blocks);
 
-    // Write new file
+    // Write new image
     let mut out_file = File::create("./images/output.webp").unwrap();
     out_file.write_all(&decrypted).unwrap();
 }
