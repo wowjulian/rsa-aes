@@ -8,11 +8,20 @@ use aes::{
 };
 use aes_cbc::{dec_cbc, enc_cbc, get_iv};
 use bbs::blum_blum_shub;
+use clap::{command, Parser};
 use crt::dec_rsa_crt;
 use libm::erfc;
 use num::{BigUint, Integer, One};
 use std::{fs::File, io::Read};
 use std::{io::Write, time::Instant};
+
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
+struct Args {
+    /// Task number, choose from 1 to 5.
+    #[arg(short, long)]
+    task: u8,
+}
 
 fn task_1() -> BigUint {
     // Task 1
@@ -29,6 +38,18 @@ fn task_1() -> BigUint {
     println!("zeroes: {}", zeros);
     println!("ones: {}", ones);
     println!("p_value: {}", p_value);
+
+    // Test 2
+    let mut runs = 0;
+    let mut last_bit = !key.bit(0);
+    for i in 0..2048 {
+        let bit = key.bit(i);
+        if bit == last_bit {
+            continue;
+        };
+        runs += 1;
+        last_bit = bit;
+    }
 
     return key;
 }
@@ -119,6 +140,7 @@ fn task_4() {
     // Write new image
     let mut out_file = File::create("./images/output.webp").unwrap();
     out_file.write_all(&decrypted).unwrap();
+    println!("File written at ./images/output.webp");
 }
 
 fn task_5() {
@@ -162,9 +184,26 @@ fn task_5() {
 }
 
 fn main() {
-    // task_1();
-    // task_2();
-    // task_3();
-    // task_4();
-    task_5();
+    let args = Args::parse();
+    let task = args.task;
+    match task {
+        1 => {
+            task_1();
+        }
+        2 => {
+            task_2();
+        }
+        3 => {
+            task_3();
+        }
+        4 => {
+            task_4();
+        }
+        5 => {
+            task_5();
+        }
+        _ => {
+            panic!("Choose between 1 to 5 for task")
+        }
+    }
 }
