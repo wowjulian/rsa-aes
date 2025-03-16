@@ -1,18 +1,17 @@
 use aes::{
-    cipher::{
-        consts::U16, generic_array::GenericArray, Block, BlockDecrypt, BlockEncrypt, KeyInit,
-    },
-    Aes128, Aes256,
+    cipher::{generic_array::GenericArray, Block, BlockDecrypt, BlockEncrypt, Key, KeyInit},
+    Aes256,
 };
+use image::ImageReader;
 use libm::erfc;
-use num::{integer::Roots, BigUint, FromPrimitive, Integer, One, Zero};
+use num::{BigUint, Integer, One, Zero};
 use num_bigint::{RandBigInt, ToBigUint};
 use rand_chacha::{
     rand_core::{RngCore, SeedableRng},
     ChaCha20Rng,
 };
+use std::io::Cursor;
 use std::str::FromStr;
-
 fn miller_rabin_test_k_and_q(n: BigUint) -> (u32, BigUint) {
     let mut k = 0;
     let mut q: BigUint = n - BigUint::one();
@@ -152,32 +151,24 @@ fn cbc_dec_with_key_and_iv(cipher: &Aes256, iv: u128, block: &mut Block<Aes256>)
     }
 }
 
-fn task_2() {
-    let (_, _, aes_key) = blum_blum_shub(256);
-    println!("aes_key: {:0256b}", aes_key);
-    let key_bytes: [u8; 32] = aes_key.to_bytes_be().try_into().expect("failed to convert");
-    let key = GenericArray::from(key_bytes);
-    let cipher = Aes256::new(&key);
-
+fn get_iv() -> u128 {
     let mut rng = ChaCha20Rng::from_seed(Default::default());
     let iv = (rng.next_u64() as u128) << 64 | rng.next_u64() as u128;
+    return iv;
+}
 
-    let plaintext = b"Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum.";
-    let padded_plaintext = pad_pkcs7(plaintext, 16);
-
-    let mut encrypted_blocks = Vec::new();
-
-    for chunk in padded_plaintext.chunks_exact(16) {
+fn enc_cbc(cipher: &Aes256, iv: u128, padded_data: Vec<u8>) -> Vec<Block<Aes256>> {
+    let mut encrypted_blocks: Vec<Block<Aes256>> = Vec::new();
+    for chunk in padded_data.chunks_exact(16) {
         let mut block = GenericArray::clone_from_slice(chunk);
         // cipher.encrypt_block(&mut block);
         cbc_enc_with_key_and_iv(&cipher, iv, &mut block);
         encrypted_blocks.push(block);
     }
-    println!("Encrypted Blocks:");
-    for (i, block) in encrypted_blocks.iter().enumerate() {
-        println!("Block {}: {:?}", i + 1, block);
-    }
+    return encrypted_blocks;
+}
 
+fn dec_cbc(cipher: &Aes256, iv: u128, encrypted_blocks: Vec<Block<Aes256>>) -> Vec<u8> {
     let mut decrypted_blocks = Vec::new();
     for block in encrypted_blocks {
         let mut block_decrypted = block.clone();
@@ -189,8 +180,31 @@ fn task_2() {
     for block in decrypted_blocks {
         decrypted_bytes.extend_from_slice(&block);
     }
-    let decrypted_text = unpad_pkcs7(&decrypted_bytes);
-    println!("Decrypted: {}", String::from_utf8_lossy(&decrypted_text));
+    let decrypted_unpadded: Vec<u8> = unpad_pkcs7(&decrypted_bytes);
+    return decrypted_unpadded;
+}
+
+fn task_2() {
+    // Get IV
+    let iv = get_iv();
+    // Get key
+    let key = get_aes_256_key();
+    let cipher: Aes256 = Aes256::new(&key);
+
+    // Pad plaintext
+    let plaintext = b"Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum.";
+    let padded_plaintext = pad_pkcs7(plaintext, 16);
+
+    // Encrypt
+    let encrypted_blocks: Vec<Block<Aes256>> = enc_cbc(&cipher, iv, padded_plaintext);
+    println!("Encrypted Blocks:");
+    for (i, block) in encrypted_blocks.iter().enumerate() {
+        println!("Block {}: {:?}", i + 1, block);
+    }
+
+    // Decrypt
+    let decrypted = dec_cbc(&cipher, iv, encrypted_blocks);
+    println!("Decrypted: {}", String::from_utf8_lossy(&decrypted));
 }
 
 // Got these two padding functions from GPT. I know how it works though, commenting on my own to demonstrate
@@ -241,9 +255,50 @@ fn task_3() {
     println!("decrypted_aes_key: {}", decrypted_aes_key);
 }
 
+fn get_aes_256_key() -> Key<Aes256> {
+    let (_, _, key_bits) = blum_blum_shub(256);
+    let key_bytes: [u8; 32] = key_bits
+        .to_bytes_be()
+        .try_into()
+        .expect("failed to convert");
+    let key = GenericArray::from(key_bytes);
+    return key;
+}
+fn image_test() {
+    let img = ImageReader::open("./images/dune.webp")
+        .unwrap()
+        .decode()
+        .unwrap();
+    let mut bytes: Vec<u8> = Vec::new();
+    img.write_to(&mut Cursor::new(&mut bytes), image::ImageFormat::Png)
+        .unwrap();
+    let img2 = ImageReader::new(Cursor::new(bytes))
+        .with_guessed_format()
+        .unwrap()
+        .decode()
+        .unwrap()
+        .save("./images/new.webp");
+}
+fn task_4() {
+    // Get IV
+    let iv = get_iv();
+    // Get key
+    let key = get_aes_256_key();
+    let cipher: Aes256 = Aes256::new(&key);
+
+    let img = ImageReader::open("./images/dune.webp")
+        .unwrap()
+        .decode()
+        .unwrap();
+    let bytes: Vec<u8> = img.into_bytes();
+
+    let encrypted_blocks: Vec<Block<Aes256>> = enc_cbc(&cipher, iv, bytes);
+    let decrypted: Vec<u8> = dec_cbc(&cipher, iv, encrypted_blocks);
+}
+
 fn main() {
     // task_1();
     task_2();
-    println!("======== [TASK 3] ========");
-    task_3();
+    // task_3();
+    // task_4();
 }
