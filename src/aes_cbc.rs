@@ -35,28 +35,45 @@ pub fn get_iv() -> u128 {
     return iv;
 }
 
-pub fn cbc_enc_with_key_and_iv(cipher: &Aes256, iv: u128, block: &mut Block<Aes256>) {
+pub fn cbc_enc_with_key_and_iv(cipher: &Aes256, iv: u128, block: &mut Block<Aes256>) -> u128 {
     for i in 0..block.len() {
         let iv_bit = ((iv >> (i * 8)) & 0xFF) as u8;
         block[i] = block[i] ^ iv_bit;
     }
     cipher.encrypt_block(block);
+    let iv: u128 = u128::from_be_bytes(
+        block
+            .clone()
+            .as_slice()
+            .try_into()
+            .expect("Block should be 16 bytes"),
+    );
+    return iv;
 }
 
-pub fn cbc_dec_with_key_and_iv(cipher: &Aes256, iv: u128, block: &mut Block<Aes256>) {
+pub fn cbc_dec_with_key_and_iv(cipher: &Aes256, iv: u128, block: &mut Block<Aes256>) -> u128 {
+    let iv_to_return: u128 = u128::from_be_bytes(
+        block
+            .clone()
+            .as_slice()
+            .try_into()
+            .expect("Block should be 16 bytes"),
+    );
     cipher.decrypt_block(block);
     for i in 0..block.len() {
         let iv_bit = ((iv >> (i * 8)) & 0xFF) as u8;
         block[i] = block[i] ^ iv_bit;
     }
+    return iv_to_return;
 }
 
 pub fn enc_cbc(cipher: &Aes256, iv: u128, data: &[u8]) -> Vec<Block<Aes256>> {
     let padded_data: Vec<u8> = pad_pkcs7(&data);
     let mut encrypted_blocks: Vec<Block<Aes256>> = Vec::new();
+    let mut current_iv = iv;
     for chunk in padded_data.chunks_exact(16) {
         let mut block = GenericArray::clone_from_slice(chunk);
-        cbc_enc_with_key_and_iv(&cipher, iv, &mut block);
+        current_iv = cbc_enc_with_key_and_iv(&cipher, current_iv, &mut block);
         encrypted_blocks.push(block);
     }
     return encrypted_blocks;
@@ -64,9 +81,10 @@ pub fn enc_cbc(cipher: &Aes256, iv: u128, data: &[u8]) -> Vec<Block<Aes256>> {
 
 pub fn dec_cbc(cipher: &Aes256, iv: u128, encrypted_blocks: Vec<Block<Aes256>>) -> Vec<u8> {
     let mut decrypted_blocks = Vec::new();
+    let mut current_iv = iv;
     for block in encrypted_blocks {
         let mut block_decrypted = block.clone();
-        cbc_dec_with_key_and_iv(&cipher, iv, &mut block_decrypted);
+        current_iv = cbc_dec_with_key_and_iv(&cipher, current_iv, &mut block_decrypted);
         decrypted_blocks.push(block_decrypted);
     }
     let mut decrypted_bytes = Vec::new();

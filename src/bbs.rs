@@ -140,6 +140,9 @@ pub fn frequency_test(key: &BigUint, bit_count: u64) {
     let zeros = bit_count - key.count_ones();
     let ones = key.count_ones();
 
+    println!("ones: {}", ones);
+    println!("zeroes: {}", zeros);
+
     let diff = ones - zeros;
     let s_obs: f64 = diff.to_f64().unwrap() / (bit_count.to_f64().unwrap()).sqrt();
     let p_value = erfc(s_obs.abs() / (2 as f64).sqrt());
