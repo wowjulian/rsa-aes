@@ -22,6 +22,7 @@ struct Args {
     task: u8,
 }
 
+// cargo run -- --task 11
 fn task_1_slow() {
     let bit_count = 2048;
     let (_q, _p, key) = blum_blum_shub(bit_count);
