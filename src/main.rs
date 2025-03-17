@@ -34,7 +34,7 @@ fn task_1_slow() {
     // Test 2
     runs_test(&key, 2048);
 }
-
+// cargo run -- --task 1
 fn task_1() {
     let bit_count = 2048;
     let (_q, _p, key) = blum_blum_shub_with_constants(bit_count);
