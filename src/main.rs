@@ -3,14 +3,13 @@ mod bbs;
 mod crt;
 
 use aes::{
-    cipher::{generic_array::GenericArray, Block, Key, KeyInit},
+    cipher::{Block, KeyInit},
     Aes256,
 };
-use aes_cbc::{dec_cbc, enc_cbc, get_iv};
-use bbs::blum_blum_shub;
+use aes_cbc::{dec_cbc, enc_cbc, get_aes_256_key, get_iv};
+use bbs::{blum_blum_shub, blum_blum_shub_with_constants, frequency_test, runs_test};
 use clap::{command, Parser};
 use crt::dec_rsa_crt;
-use libm::erfc;
 use num::{BigUint, Integer, One};
 use std::{fs::File, io::Read};
 use std::{io::Write, time::Instant};
@@ -23,35 +22,28 @@ struct Args {
     task: u8,
 }
 
-fn task_1() -> BigUint {
-    // Task 1
-    let (_q, _p, key) = blum_blum_shub(2048);
+fn task_1_slow() {
+    let bit_count = 2048;
+    let (_q, _p, key) = blum_blum_shub(bit_count);
     println!("result: {:02048b}", key);
-    println!("bits: {}", key.bits());
 
     // Test 1
-    let zeros = key.bits() - key.count_ones();
-    let ones = key.count_ones();
-    let s_obs: f64 = (ones - zeros) as f64 / (key.bits() as f64).sqrt();
-    let p_value = erfc(s_obs.abs() / (2 as f64).sqrt());
-
-    println!("zeroes: {}", zeros);
-    println!("ones: {}", ones);
-    println!("p_value: {}", p_value);
+    frequency_test(&key, 2048);
 
     // Test 2
-    let mut runs = 0;
-    let mut last_bit = !key.bit(0);
-    for i in 0..2048 {
-        let bit = key.bit(i);
-        if bit == last_bit {
-            continue;
-        };
-        runs += 1;
-        last_bit = bit;
-    }
+    runs_test(&key, 2048);
+}
 
-    return key;
+fn task_1() {
+    let bit_count = 2048;
+    let (_q, _p, key) = blum_blum_shub_with_constants(bit_count);
+    println!("result: {:02048b}", key);
+
+    // Test 1
+    frequency_test(&key, 2048);
+
+    // Test 2
+    runs_test(&key, 2048);
 }
 
 fn task_2() {
@@ -77,10 +69,10 @@ fn task_2() {
 
 fn task_3() {
     // Generate a AES symm key
-    let (_, _, aes_key) = blum_blum_shub(256);
+    let (_, _, aes_key) = blum_blum_shub_with_constants(256);
 
     // Generate q and p
-    let (q, p, _) = blum_blum_shub(2048);
+    let (q, p, _) = blum_blum_shub_with_constants(2048);
 
     // Calculate n and totient n
     let n = q.clone() * p.clone();
@@ -110,16 +102,6 @@ fn task_3() {
     println!("decrypted_aes_key: {}", decrypted_aes_key);
 }
 
-fn get_aes_256_key() -> Key<Aes256> {
-    let (_, _, key_bits) = blum_blum_shub(256);
-    let key_bytes: [u8; 32] = key_bits
-        .to_bytes_be()
-        .try_into()
-        .expect("failed to convert");
-    let key = GenericArray::from(key_bytes);
-    return key;
-}
-
 fn task_4() {
     // Get IV
     let iv = get_iv();
@@ -145,11 +127,11 @@ fn task_4() {
 
 fn task_5() {
     // Generate a AES symm key
-    let (_, _, aes_key) = blum_blum_shub(256);
+    let (_, _, aes_key) = blum_blum_shub_with_constants(256);
     println!("key: {}", aes_key);
 
     // Generate q and p
-    let (q, p, _) = blum_blum_shub(2048);
+    let (q, p, _) = blum_blum_shub_with_constants(2048);
 
     // Calculate n and totient n
     let n = q.clone() * p.clone();
@@ -202,8 +184,11 @@ fn main() {
         5 => {
             task_5();
         }
+        11 => {
+            task_1_slow();
+        }
         _ => {
-            panic!("Choose between 1 to 5 for task")
+            panic!("[INVALID TASK] Choose between 1 to 5 for task. Use Task 11 for task 1 but slow")
         }
     }
 }

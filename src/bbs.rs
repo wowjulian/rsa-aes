@@ -1,6 +1,7 @@
 use std::str::FromStr;
 
-use num::{BigUint, Integer, One, Zero};
+use libm::{erfc, sqrt};
+use num::{BigUint, Integer, One, ToPrimitive, Zero};
 use num_bigint::{RandBigInt, ToBigUint};
 
 pub fn miller_rabin_test_k_and_q(n: BigUint) -> (u32, BigUint) {
@@ -80,8 +81,8 @@ pub fn find_seed_for_bbs(n: &BigUint) -> BigUint {
     return s_candidate;
 }
 
-pub fn blum_blum_shub(bit_count: u64) -> (BigUint, BigUint, BigUint) {
-    // Calculated with find_prime_for_bbs(1024)
+pub fn blum_blum_shub_with_constants(bit_count: u64) -> (BigUint, BigUint, BigUint) {
+    // Calculated with find_prime_for_bbs()
     let p: BigUint = BigUint::from_str("91122045179318965173533839131368998662772456836316619574148988450969399638066015732396427566243748625301463193721989348160150289310601464760678023543905884939640329370981639669486054016790003739067183295427192269871515101958634419380284904391739809184729932234982543491394799238889453600867187568552286325947").unwrap();
     let q: BigUint = BigUint::from_str("22537017916243391647302294697783847565496398436656731187314486777281589031427811644162172298834653261847630683638084954095389795674883668957087575593936693030294860183039798443433626313894524118928724341320999385717299136781988248405248165926958106413623940227249989571125812352913420301394817441164820406503").unwrap();
     let n = &q * &p;
@@ -104,4 +105,52 @@ pub fn blum_blum_shub(bit_count: u64) -> (BigUint, BigUint, BigUint) {
     }
 
     return (q, p, result);
+}
+
+pub fn blum_blum_shub(bit_count: u64) -> (BigUint, BigUint, BigUint) {
+    let p: BigUint = find_prime_for_bbs();
+    println!("p: {}", p);
+    let q: BigUint = find_prime_for_bbs();
+    println!("q: {}", q);
+    let n = &q * &p;
+    println!("n: {}", n);
+    // Calculated with find_seed_for_bbs(&n)
+    let s: BigUint = find_seed_for_bbs(&n);
+    println!("s: {}", s);
+    let two = BigUint::one() + BigUint::one();
+    let mut x = s.modpow(&two, &n);
+    let mut result: BigUint = BigUint::zero();
+    for i in 0..bit_count {
+        x = x.modpow(&two, &n);
+        let bit = x.modpow(&BigUint::one(), &two) & BigUint::one();
+        result.set_bit(i, bit.bit(0));
+    }
+    return (q, p, result);
+}
+
+pub fn frequency_test(key: &BigUint, bit_count: u64) {
+    let zeros = bit_count - key.count_ones();
+    let ones = key.count_ones();
+    let s_obs: f64 = (ones - zeros).to_f64().unwrap() / (bit_count.to_f64().unwrap()).sqrt();
+    let p_value = erfc(s_obs.abs() / (2 as f64).sqrt());
+    println!("frequency test p: {}", p_value);
+}
+
+pub fn runs_test(key: &BigUint, bit_count: u64) {
+    let ones = key.count_ones();
+    let mut runs: f64 = 0.0;
+    let mut last_bit = !key.bit(0);
+    for i in 0..2048 {
+        let bit = key.bit(i);
+        if bit == last_bit {
+            continue;
+        };
+        runs += 1.0;
+        last_bit = bit;
+    }
+    let pi = ones.to_f64().unwrap() / bit_count.to_f64().unwrap();
+    let upper = (runs - 2.0 * bit_count.to_f64().unwrap() * pi * (1.0 - pi)).abs();
+    let lower = 2.0 * sqrt(2.0 * bit_count.to_f64().unwrap()) * pi * (1.0 - pi);
+    let p = erfc(upper / lower);
+    println!("runs test p: {}", p);
 }

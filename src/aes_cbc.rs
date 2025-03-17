@@ -1,11 +1,13 @@
 use aes::{
-    cipher::{generic_array::GenericArray, Block, BlockDecrypt, BlockEncrypt},
+    cipher::{generic_array::GenericArray, Block, BlockDecrypt, BlockEncrypt, Key},
     Aes256,
 };
 use rand_chacha::{
     rand_core::{RngCore, SeedableRng},
     ChaCha20Rng,
 };
+
+use crate::bbs::blum_blum_shub_with_constants;
 
 const BLOCK_SIZE: usize = 16;
 // Got these two padding functions from GPT. I know how it works though, commenting on my own to demonstrate
@@ -73,4 +75,14 @@ pub fn dec_cbc(cipher: &Aes256, iv: u128, encrypted_blocks: Vec<Block<Aes256>>) 
     }
     let decrypted_unpadded: Vec<u8> = unpad_pkcs7(&decrypted_bytes);
     return decrypted_unpadded;
+}
+
+pub fn get_aes_256_key() -> Key<Aes256> {
+    let (_, _, key_bits) = blum_blum_shub_with_constants(256);
+    let key_bytes: [u8; 32] = key_bits
+        .to_bytes_be()
+        .try_into()
+        .expect("failed to convert");
+    let key = GenericArray::from(key_bytes);
+    return key;
 }

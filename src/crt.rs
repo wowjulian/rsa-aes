@@ -1,4 +1,4 @@
-use num::{BigUint, Integer, One};
+use num::{BigUint, One};
 
 pub fn dec_rsa_crt(d: &BigUint, p: &BigUint, q: &BigUint, encrypted_aes_key: &BigUint) -> BigUint {
     let p_minus_one = p - BigUint::one();
