@@ -29,6 +29,12 @@ fn unpad_pkcs7(data: &[u8]) -> Vec<u8> {
     return data[..data.len() - pad_len].to_vec();
 }
 
+pub fn get_iv() -> u128 {
+    let mut rng = ChaCha20Rng::from_seed(Default::default());
+    let iv = (rng.next_u64() as u128) << 64 | rng.next_u64() as u128;
+    return iv;
+}
+
 pub fn cbc_enc_with_key_and_iv(cipher: &Aes256, iv: u128, block: &mut Block<Aes256>) {
     for i in 0..block.len() {
         let iv_bit = ((iv >> (i * 8)) & 0xFF) as u8;
@@ -43,12 +49,6 @@ pub fn cbc_dec_with_key_and_iv(cipher: &Aes256, iv: u128, block: &mut Block<Aes2
         let iv_bit = ((iv >> (i * 8)) & 0xFF) as u8;
         block[i] = block[i] ^ iv_bit;
     }
-}
-
-pub fn get_iv() -> u128 {
-    let mut rng = ChaCha20Rng::from_seed(Default::default());
-    let iv = (rng.next_u64() as u128) << 64 | rng.next_u64() as u128;
-    return iv;
 }
 
 pub fn enc_cbc(cipher: &Aes256, iv: u128, data: &[u8]) -> Vec<Block<Aes256>> {
