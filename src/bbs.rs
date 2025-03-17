@@ -14,10 +14,14 @@ pub fn miller_rabin_test_k_and_q(n: BigUint) -> (u32, BigUint) {
     return (k, q);
 }
 pub fn miller_rabin_test(n: &BigUint, q: &BigUint, k: &u32) -> bool {
-    let mut rng = rand::thread_rng();
     let lbound = BigUint::one() + BigUint::one();
     let ubound = n - BigUint::one();
+
+    // Find random number between lbound and u bound
+    let mut rng = rand::thread_rng();
     let a: BigUint = rng.gen_biguint_range(&lbound, &ubound);
+
+    // if a^q mod n is one, it is inconclusive
     let is_inconclusive: bool = (a.modpow(&q, n)) == BigUint::one();
     if is_inconclusive {
         return true;
@@ -25,7 +29,9 @@ pub fn miller_rabin_test(n: &BigUint, q: &BigUint, k: &u32) -> bool {
 
     let two: u32 = u32::one() + u32::one();
     if *k != 0 {
+        // Iterate through k
         for j in 0..*k {
+            // If a^((2^j) * q) mod n is equal to n - 1, it is inconclusive.
             let exponent = two.pow(j) * q.clone();
             let a_pow_j_q_mod_n = a.modpow(&exponent, n);
             if a_pow_j_q_mod_n == (n - BigUint::one()) {
@@ -39,7 +45,13 @@ pub fn miller_rabin_test(n: &BigUint, q: &BigUint, k: &u32) -> bool {
 
 pub fn is_prime(number: &BigUint) -> bool {
     let (k, q) = miller_rabin_test_k_and_q(number.clone());
+    // According to Wikipedia
+    // > As of 2003 RSA Security claims that 1024-bit RSA keys are equivalent in strength to 80-bit symmetric keys,
+    // > 2048-bit RSA keys to 112-bit symmetric keys and 3072-bit RSA keys to 128-bit symmetric keys.
+
+    // Performs 56 iterations of Rabin-Miller.
     for _i in 0..56 {
+        // If it's composite, return false.
         let inconclusive = miller_rabin_test(&number, &q, &k);
         if !inconclusive {
             return false;
@@ -50,8 +62,10 @@ pub fn is_prime(number: &BigUint) -> bool {
 
 pub fn generate_prime_number(bit_size: u64) -> BigUint {
     let mut rng = rand::thread_rng();
+    // Even number is always going to be not prime, so performs binary OR 1 to make it an odd number.
     let mut odd_random_number = rng.gen_biguint(bit_size) | BigUint::one();
     let mut count = 0;
+    // Regenerates a random number until it passes prime number check.
     while !is_prime(&odd_random_number) {
         count += 1;
         odd_random_number = rng.gen_biguint(bit_size) | BigUint::one();
@@ -81,6 +95,26 @@ pub fn find_seed_for_bbs(n: &BigUint) -> BigUint {
     return s_candidate;
 }
 
+pub fn blum_blum_shub(bit_count: u64) -> (BigUint, BigUint, BigUint) {
+    let p: BigUint = find_prime_for_bbs();
+    println!("p: {}", p);
+    let q: BigUint = find_prime_for_bbs();
+    println!("q: {}", q);
+    let n = &q * &p;
+    println!("n: {}", n);
+    let s: BigUint = find_seed_for_bbs(&n);
+    println!("s: {}", s);
+    let two = BigUint::one() + BigUint::one();
+    let mut x = s.modpow(&two, &n);
+    let mut result: BigUint = BigUint::zero();
+    for i in 0..bit_count {
+        x = x.modpow(&two, &n);
+        let bit = x.modpow(&BigUint::one(), &two) & BigUint::one();
+        result.set_bit(i, bit.bit(0));
+    }
+    return (q, p, result);
+}
+
 pub fn blum_blum_shub_with_constants(bit_count: u64) -> (BigUint, BigUint, BigUint) {
     // Calculated with find_prime_for_bbs()
     let p: BigUint = BigUint::from_str("91122045179318965173533839131368998662772456836316619574148988450969399638066015732396427566243748625301463193721989348160150289310601464760678023543905884939640329370981639669486054016790003739067183295427192269871515101958634419380284904391739809184729932234982543491394799238889453600867187568552286325947").unwrap();
@@ -104,27 +138,6 @@ pub fn blum_blum_shub_with_constants(bit_count: u64) -> (BigUint, BigUint, BigUi
         result.set_bit(i, bit.bit(0));
     }
 
-    return (q, p, result);
-}
-
-pub fn blum_blum_shub(bit_count: u64) -> (BigUint, BigUint, BigUint) {
-    let p: BigUint = find_prime_for_bbs();
-    println!("p: {}", p);
-    let q: BigUint = find_prime_for_bbs();
-    println!("q: {}", q);
-    let n = &q * &p;
-    println!("n: {}", n);
-    // Calculated with find_seed_for_bbs(&n)
-    let s: BigUint = find_seed_for_bbs(&n);
-    println!("s: {}", s);
-    let two = BigUint::one() + BigUint::one();
-    let mut x = s.modpow(&two, &n);
-    let mut result: BigUint = BigUint::zero();
-    for i in 0..bit_count {
-        x = x.modpow(&two, &n);
-        let bit = x.modpow(&BigUint::one(), &two) & BigUint::one();
-        result.set_bit(i, bit.bit(0));
-    }
     return (q, p, result);
 }
 
